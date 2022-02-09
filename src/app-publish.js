@@ -13,6 +13,7 @@ const zhihu = require('./blog/zhihu');
 const jianshu = require('./blog/jianshu');
 
 const removeFrontmatter = require('./remove-frontmatter');
+const addHostForLink = require('./remark-add-host-for-link');
 
 async function parseFrontmatter(text) {
   const { unified } = await import('unified')
@@ -39,6 +40,7 @@ async function parseToHtml(text) {
   const result = await unified()
     .use(parser.default)
     .use(frontmatter.default)
+    .use(addHostForLink)
     .use(gfm.default)
     .use(rehype.default)
     .use(stringify.default)
@@ -56,6 +58,7 @@ async function parseToMd(text) {
     .use(parser.default)
     .use(frontmatter.default)
     .use(removeFrontmatter)
+    .use(addHostForLink)
     .use(stringify.default)
     .process(text)
 
