@@ -1,6 +1,6 @@
+const yaml = require('yaml')
 const util = require('./common/app-util');
 const string = require('./common/app-string');
-const marked = require('marked');
 const fs = require('fs');
 const appUpload = require('./app-upload');
 
@@ -11,6 +11,56 @@ const oschina = require('./blog/oschina');
 const segmentfault = require('./blog/segmentfault');
 const zhihu = require('./blog/zhihu');
 const jianshu = require('./blog/jianshu');
+
+const removeFrontmatter = require('./remove-frontmatter');
+
+async function parseFrontmatter(text) {
+  const { unified } = await import('unified')
+  const parser = await import('remark-parse')
+  const frontmatter = await import('remark-frontmatter')
+  const result = unified()
+    .use(parser.default)
+    .use(frontmatter.default, ['yaml'])
+    .parse(text)
+  if (result.children[0].type === 'yaml') {
+    return yaml.parse(result?.children[0].value)
+  } else {
+    return {}
+  }
+}
+
+async function parseToHtml(text) {
+  const { unified } = await import('unified')
+  const parser = await import('remark-parse')
+  const gfm = await import('remark-gfm')
+  const frontmatter = await import('remark-frontmatter')
+  const stringify = await import('rehype-stringify')
+  const rehype = await import('remark-rehype')
+  const result = await unified()
+    .use(parser.default)
+    .use(frontmatter.default)
+    .use(gfm.default)
+    .use(rehype.default)
+    .use(stringify.default)
+    .process(text)
+
+  return String(result)
+}
+
+async function parseToMd(text) {
+  const { unified } = await import('unified')
+  const parser = await import('remark-parse')
+  const frontmatter = await import('remark-frontmatter')
+  const stringify = await import('remark-stringify')
+  const result = await unified()
+    .use(parser.default)
+    .use(frontmatter.default)
+    .use(removeFrontmatter)
+    .use(stringify.default)
+    .process(text)
+
+  return String(result)
+}
 
 // 发布文章到平台
 const publishArticleTo = (title, content, dirname, site, isPublish) => {
@@ -132,6 +182,9 @@ const publishArticleTo = (title, content, dirname, site, isPublish) => {
         if (!mark.next) {
             return
         }
+        const frontmatter = await parseFrontmatter(text);
+        const htmlContent = await parseToHtml(text);
+        const markdownContent = await parseToMd(text);
         // 3.发布文章
         switch (site) {
             case string.cnblogs:
@@ -144,7 +197,7 @@ const publishArticleTo = (title, content, dirname, site, isPublish) => {
                     });
                 break;
             case string.csdn:
-                await csdn.publishArticleToCSDN(title, text, marked(text), isPublish)
+                await csdn.publishArticleToCSDN(frontmatter.title || title, markdownContent, htmlContent, isPublish)
                     .then(url => {
                         resolve(url)
                     })
@@ -153,7 +206,7 @@ const publishArticleTo = (title, content, dirname, site, isPublish) => {
                     });
                 break;
             case string.juejin:
-                await juejin.publishArticleToJueJin(title, text, marked(text), isPublish)
+                await juejin.publishArticleToJueJin(frontmatter.title || title, markdownContent, htmlContent, isPublish)
                     .then(url => {
                         resolve(url)
                     })
@@ -162,7 +215,7 @@ const publishArticleTo = (title, content, dirname, site, isPublish) => {
                     });
                 break;
             case string.oschina:
-                await oschina.publishArticleToOsChina(title, text, isPublish)
+                await oschina.publishArticleToOsChina(frontmatter.title || title, markdownContent, isPublish)
                     .then(url => {
                         resolve(url)
                     })
