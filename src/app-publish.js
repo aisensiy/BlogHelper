@@ -245,7 +245,7 @@ const publishArticleTo = (title, content, dirname, site, isPublish) => {
                     });
                 break;
             case string.jianshu:
-                await jianshu.publishArticleToJianshu(title, text, isPublish)
+                await jianshu.publishArticleToJianshu(frontmatter.title || title, markdownContent, isPublish)
                     .then(url => {
                         resolve(url)
                     })
